@@ -4,18 +4,18 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-// 1. إعدادات البث (سحب مفتاح البث من متغيرات البيئة)
+// 1. إعدادات البث ومفتاح يوتيوب
 const STREAM_KEY = process.env.YOUTUBE_STREAM_KEY || "YOUR_STREAM_KEY_HERE";
 const RTMP_DESTINATION = `rtmp://a.rtmp.youtube.com/live2/${STREAM_KEY}`;
 
-const FPS = 30;
-const FRAME_INTERVAL_MS = 1000 / FPS;
+const FRAME_BATCH_SIZE = 24;
 
-// 2. تشغيل سيرفر محلي خفيف على 127.0.0.1 لتفادي قيود الـ CORS
+// سيرفر محلي نظيف يمنع أخطاء الـ 404 والـ Favicon
 function startLocalServer() {
     return new Promise((resolve) => {
         const server = http.createServer((req, res) => {
             let reqPath = decodeURIComponent(req.url.split('?')[0]);
+            if (reqPath === '/favicon.ico') { res.writeHead(204); res.end(); return; }
             if (reqPath === '/' || reqPath === '') reqPath = '/scene.html';
             const filePath = path.join(process.cwd(), reqPath);
             fs.readFile(filePath, (err, data) => {
@@ -27,15 +27,26 @@ function startLocalServer() {
     });
 }
 
-async function startLiveStream() {
-    console.log("==========================================");
-    console.log("🚀 بدء محرك البث المباشر اللحظي إلى YouTube...");
-    console.log("==========================================");
+function writeWithBackpressure(stream, buffer) {
+    return new Promise((resolve, reject) => {
+        const ok = stream.write(buffer, (err) => { if (err) reject(err); });
+        if (ok) resolve();
+        else stream.once('drain', resolve);
+    });
+}
 
+async function runLivePipeline() {
+    console.log("==========================================================");
+    console.log("🌟 محرك البث المباشر الذكي (Dual-Stage Live Engine)");
+    console.log("==========================================================");
+
+    // =========================================================================
+    // المرحلة الأولى: تجهيز كبسولة البث الأصلية (بدون إسقاط أي فريم)
+    // =========================================================================
+    console.log("\n[المرحلة 1]: جلب الآيات والصوت وتجهيز كبسولة البث بدقة 100%...");
     const server = await startLocalServer();
     const port = server.address().port;
 
-    console.log(`1. تشغيل المتصفح الخفي على http://127.0.0.1:${port}...`);
     const browser = await puppeteer.launch({
         headless: "new",
         args: [
@@ -50,115 +61,107 @@ async function startLiveStream() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // توجيه سجلات المتصفح إلى التيرمينال لرؤية تقدم تحميل الصوت
-    page.on('console', msg => console.log(`[Browser]: ${msg.text()}`));
+    page.on('console', msg => console.log(`[Browser Console]: ${msg.text()}`));
     page.on('pageerror', err => console.error(`[Browser Error]: ${err.message}`));
 
-    console.log("2. فتح صفحة المشهد وبدء جلب الآيات والصوت...");
-    
-    // فتح الصفحة دون حظر الشبكة مع مهلة دقيقتين
-    await page.goto(`http://127.0.0.1:${port}/scene.html`, { 
-        waitUntil: 'domcontentloaded',
-        timeout: 120000 
-    });
-
-    console.log("3. جاري انتظار اكتمال تحميل الصوت والخطوط وتجهيز الكانفاس...");
+    await page.goto(`http://127.0.0.1:${port}/scene.html`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForFunction(() => window.renderStatus === 'ready', { timeout: 120000 });
-    console.log("✓ تم اكتمال تجهيز المشهد بالكامل!");
 
-    // 4. استخراج ملف الصوت ومزامنته
+    // استخراج الصوت
     const audioBase64 = await page.evaluate(() => window.__ofoqAudioWavBase64);
     const hasAudio = !!audioBase64;
     if (hasAudio) {
         fs.writeFileSync('temp_live_audio.wav', Buffer.from(audioBase64, 'base64'));
-        console.log("✓ تم حفظ ملف الصوت المؤقت للمزامنة اللحظية.");
     }
 
-    // تشغيل حلقة العرض داخل المتصفح
-    await page.evaluate(() => {
-        if (typeof startPreviewLoop === 'function') startPreviewLoop();
-    });
+    const totalFrames = await page.evaluate(() => window.__ofoqTotalFrames);
+    const fps = await page.evaluate(() => window.__ofoqFps || 30);
+    const streamSourceFile = 'live_stream_source.mp4';
 
-    // 5. تهيئة خط أنابيب FFmpeg للبث المباشر RTMP
-    console.log("4. بدء تشغيل FFmpeg وضخ البث إلى YouTube...");
-    const ffmpegArgs = [
+    console.log(`\n✓ جاري رندرة المشهد (${totalFrames} فريم @ ${fps} FPS) بدون أي تقطيع...`);
+
+    const preEncodeArgs = [
         '-y',
-        '-loglevel', 'warning',
-        // مدخل الفيديو من المتصفح
+        '-loglevel', 'error',
         '-f', 'image2pipe',
-        '-r', String(FPS),
+        '-framerate', String(fps),
         '-i', '-',
-        // مدخل الصوت
-        ...(hasAudio ? ['-re', '-stream_loop', '-1', '-i', 'temp_live_audio.wav'] : []),
-        // إعدادات البث المباشر لليوتيوب
+        ...(hasAudio ? ['-i', 'temp_live_audio.wav'] : []),
         '-c:v', 'libx264',
-        '-preset', 'veryfast',
-        '-tune', 'zerolatency',
-        '-b:v', '4500k',
-        '-maxrate', '4500k',
-        '-bufsize', '9000k',
+        '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
-        '-g', String(FPS * 2),
-        ...(hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-ar', '44100'] : []),
+        '-g', String(fps * 2),
+        ...(hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-shortest'] : []),
+        streamSourceFile
+    ];
+
+    const preFfmpeg = spawn('ffmpeg', preEncodeArgs);
+    preFfmpeg.stderr.on('data', d => console.error(`[Pre-Encode FFmpeg]: ${d.toString()}`));
+
+    let lastPercent = -1;
+    for (let start = 0; start < totalFrames; start += FRAME_BATCH_SIZE) {
+        const count = Math.min(FRAME_BATCH_SIZE, totalFrames - start);
+        const batch = await page.evaluate(([s, c]) => window.__ofoqGetFrameBatch(s, c), [start, count]);
+        for (const base64Frame of batch) {
+            await writeWithBackpressure(preFfmpeg.stdin, Buffer.from(base64Frame, 'base64'));
+        }
+        const percent = Math.round(((start + count) / totalFrames) * 100);
+        if (percent !== lastPercent) {
+            process.stdout.write(`\r[تجهيز البث]: فريم ${start + count}/${totalFrames} (${percent}%) ✓`);
+            lastPercent = percent;
+        }
+    }
+
+    preFfmpeg.stdin.end();
+    await new Promise(resolve => preFfmpeg.on('close', resolve));
+    await browser.close();
+    server.close();
+
+    console.log("\n✓ اكتمل تجهيز كبسولة البث بجودة فائقة وفريمات كاملة 30.00 FPS!");
+
+    // =========================================================================
+    // المرحلة الثانية: انطلاق البث المباشر إلى YouTube RTMP بتكرار لا نهائي
+    // =========================================================================
+    console.log("\n==========================================================");
+    console.log("🔴 [المرحلة 2]: انطلاق البث المباشر الآن على YouTube 24/7...");
+    console.log("==========================================================");
+
+    const liveArgs = [
+        '-re',                        // قراءة بالزمن الحقيقي الصارم 1.00x
+        '-stream_loop', '-1',         // تكرار لا نهائي سلس للأبد
+        '-i', streamSourceFile,       // كبسولة المشهد الجاهزة
+        '-c:v', 'copy',               // تمرير مباشر للفيديو بدون استهلاك معالج (CPU ~ 0%)
+        '-c:a', 'copy',               // تمرير مباشر للصوت بنقاء 100%
         '-f', 'flv',
         '-flvflags', 'no_duration_filesize',
         RTMP_DESTINATION
     ];
 
-    const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+    const liveFfmpeg = spawn('ffmpeg', liveArgs);
 
-    ffmpeg.stderr.on('data', (d) => {
+    liveFfmpeg.stderr.on('data', (d) => {
         const msg = d.toString();
+        // إظهار لوج حي وتفصيلي في تيرمينال GitHub Actions
         if (msg.includes('frame=') || msg.includes('bitrate=')) {
-            process.stdout.write(`\r[Live RTMP]: ${msg.trim()}`);
-        } else {
-            console.log(`[FFmpeg]: ${msg.trim()}`);
+            process.stdout.write(`\r[YouTube Live 🔴]: ${msg.trim()}`);
+        } else if (msg.toLowerCase().includes('error')) {
+            console.error(`\n[RTMP Error]: ${msg.trim()}`);
         }
     });
 
-    ffmpeg.on('close', (code) => {
+    liveFfmpeg.on('close', (code) => {
         console.log(`\nانتهت جلسة البث بكود: ${code}`);
-        browser.close();
-        server.close();
         process.exit(code);
     });
 
-    console.log("5. البث المباشر يعمل الآن على يوتيوب بنجاح (30 FPS) ✓");
-
-    // 6. التقاط وضخ الفريمات اللحظية بدقة 30 فريم في الثانية
-    let isCapturing = false;
-    const interval = setInterval(async () => {
-        if (isCapturing) return;
-        isCapturing = true;
-
-        try {
-            const frameBase64 = await page.evaluate(() => {
-                const cvs = document.getElementById('videoCanvas');
-                return cvs ? cvs.toDataURL('image/jpeg', 0.88).split(',')[1] : null;
-            });
-
-            if (frameBase64 && ffmpeg.stdin.writable) {
-                const buffer = Buffer.from(frameBase64, 'base64');
-                ffmpeg.stdin.write(buffer);
-            }
-        } catch (err) {
-            console.error("\nتنبيه في التقاط الفريم:", err.message);
-        } finally {
-            isCapturing = false;
-        }
-    }, FRAME_INTERVAL_MS);
-
     process.on('SIGINT', () => {
-        console.log("\nإيقاف البث...");
-        clearInterval(interval);
-        ffmpeg.stdin.end();
-        browser.close();
-        server.close();
+        console.log("\nإيقاف البث المباشر...");
+        liveFfmpeg.kill('SIGINT');
         process.exit(0);
     });
 }
 
-startLiveStream().catch((err) => {
-    console.error("فشل تشغيل البث:", err);
+runLivePipeline().catch(err => {
+    console.error("\nخطأ فادح في البث:", err);
     process.exit(1);
 });
