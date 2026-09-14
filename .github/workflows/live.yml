@@ -1,0 +1,30 @@
+name: 24/7 YouTube Quran Live Stream
+
+on:
+  workflow_dispatch: # تشغيل يدوي بضغطة زر
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # أقصى مدة للـ Job في GitHub Actions (6 ساعات)
+
+    steps:
+      - name: 1. تنزيل الكود (Checkout Repository)
+        uses: actions/checkout@v4
+
+      - name: 2. تثبيت Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 3. تثبيت FFmpeg والمتصفحات
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          npm install puppeteer
+
+      - name: 4. بدء تشغيل البث المباشر اللحظي إلى YouTube
+        env:
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+        run: |
+          node stream-live.js
