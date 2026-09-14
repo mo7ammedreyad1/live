@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surah Al-Baqarah 1-4 · 16:9 TV Broadcast Edition</title>
+
+    <!-- FONT IMPORTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@600;700&family=IBM+Plex+Sans+Arabic:wght@500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+
+    <style>
+        /* خط عثمان طه النسخ (مصحف المدينة المنورة الإصدار العاشر) عبر jsDelivr */
+        @font-face {
+            font-family: 'UthmanTahaNaskh';
+            src: url('https://cdn.jsdelivr.net/gh/mo7ammedreyad1/Assets@main/alfont_com_UthmanTN1-Ver10.otf.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background-color: #080402; color: #FFF8E7;
+            font-family: 'UthmanTahaNaskh', 'IBM Plex Sans Arabic', serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; min-height: 100dvh; overflow: hidden; padding: 12px;
+        }
+        #viewport {
+            position: relative;
+            max-height: 86vh;
+            max-width: 94vw;
+            width: auto;
+            height: auto;
+            background: #0f0804;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95), 0 0 1px 1px rgba(212, 175, 55, 0.15);
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+        #hud {
+            position: absolute; top: 16px; right: 20px;
+            background: rgba(18, 10, 5, 0.9); backdrop-filter: blur(14px);
+            color: #FFF8E7; padding: 6px 14px; border-radius: 30px;
+            font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); border: 1px solid rgba(212, 175, 55, 0.25); z-index: 10;
+        }
+        .spinner {
+            width: 12px; height: 12px; border: 2px solid rgba(212, 175, 55, 0.2);
+            border-top: 2px solid #d4af37; border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #controls-overlay {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 12px; z-index: 10; background: rgba(18, 10, 5, 0.94);
+            padding: 8px 20px; border-radius: 40px; backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 175, 55, 0.25); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+        .btn {
+            font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 12px; font-weight: 700; padding: 6px 14px;
+            border-radius: 20px; border: none; cursor: pointer; display: flex;
+            align-items: center; gap: 6px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-preview { background: rgba(255, 248, 231, 0.1); color: #FFF8E7; }
+        .btn-preview:hover { background: rgba(212, 175, 55, 0.25); color: #d4af37; }
+        .btn-render { background: #d4af37; color: #0f0804; border: 1px solid rgba(255, 255, 255, 0.4); }
+        .btn-render:hover { background: #fcebb6; }
+
+        #seek-slider {
+            width: 240px; max-width: 28vw; height: 5px; -webkit-appearance: none;
+            background: rgba(255, 248, 231, 0.2); border-radius: 5px; outline: none; cursor: pointer;
+        }
+        #seek-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+            background: #d4af37; cursor: pointer; box-shadow: 0 0 8px rgba(212, 175, 55, 0.8);
+        }
+        #time-label {
+            font-family: 'Plus Jakarta Sans', monospace; font-size: 11px;
+            color: rgba(255, 248, 231, 0.75); min-width: 75px; text-align: center;
+        }
+
+        #console-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 680px; max-width: 92vw; height: 400px; background: #0f0804;
+            border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.95);
+            z-index: 100; display: none; flex-direction: column; overflow: hidden;
+        }
+        #console-header {
+            background: #1f1109; padding: 12px 18px; display: flex;
+            justify-content: space-between; align-items: center; font-size: 13px; font-weight: bold; color: #FFF8E7;
+        }
+        #console-output {
+            flex: 1; padding: 14px; overflow-y: auto; font-family: monospace;
+            font-size: 12px; color: #FFF8E7; background: #080402; line-height: 1.6;
+        }
+        .log-line { margin-bottom: 4px; }
+        .log-info { color: #38bdf8; }
+        .log-warn { color: #facc15; }
+        .log-error { color: #f87171; }
+    </style>
+</head>
+<body>
+    <div id="viewport">
+        <canvas id="videoCanvas"></canvas>
+        <div id="hud"><div class="spinner" id="spinner"></div><span id="status-text">جاري إعداد البث التلفزيوني...</span></div>
+        <div id="controls-overlay">
+            <button class="btn btn-preview" id="btn-play-pause"><i class="ph-fill ph-pause" id="icon-play-pause"></i> <span id="text-play-pause">إيقاف</span></button>
+            <input type="range" id="seek-slider" min="0" max="100" value="0" step="0.1">
+            <span id="time-label">00:00 / 00:00</span>
+            <button class="btn btn-preview" id="btn-toggle-console"><i class="ph ph-terminal-window"></i> السجل</button>
+            <button class="btn btn-render" id="btn-render-start"><i class="ph-fill ph-video-camera"></i> تصدير</button>
+        </div>
+    </div>
+
+    <div id="console-modal">
+        <div id="console-header">
+            <span><i class="ph ph-terminal-window"></i> سجل التلاوة والتفسير الميسر</span>
+            <button class="btn btn-preview" id="btn-close-console" style="color:#fff; background:#ef4444; border:none; padding:4px 14px;">إغلاق</button>
+        </div>
+        <div id="console-output"></div>
+    </div>
+
+    <script type="module">
+        // =========================================================================
+        // 1. CONFIG & METADATA (16:9 LANDSCAPE TV BROADCAST · 1920 × 1080)
+        // =========================================================================
+        export const CONFIG = {
+            fps: 30, // 30 FPS Broadcast Standard
+            width: 1920, // 16:9 Widescreen Full HD Width
+            height: 1080, // 16:9 Height
+            duration: 52.0 // Updated dynamically to match audio length
+        };
+
+        export const OUTPUT_FILENAME = 'quran_baqarah_1_to_4_tv_broadcast';
+        export let audioBuffer = null;
+
+        const TOTAL_AYAHS = 4;
+        let streamData = Array.from({ length: TOTAL_AYAHS }, (_, i) => ({
+            number: i + 1,
+            quranLines: [],
+            quranFontSize: 58,
+            quranLineHeight: 90,
+            rawTafsir: "",
+            start: i * 13.0,
+            end: (i + 1) * 13.0
+        }));
+
+        // Easing Functions
+        function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+        function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+        function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+        // Dynamic Line Wrapper for Widescreen 16:9 TV Format (Max Width: 1620px)
+        function formatResponsiveQuranLines(rawText, ayahNumber, maxW = 1620) {
+            let clean = rawText.replace(/^بِسْمِ [^ ]+ [^ ]+ [^ ]+\s*/, '').trim();
+            const words = clean.split(/\s+/).filter(Boolean);
+
+            let fontSize = 56;
+            let lineHeight = 88;
+
+            if (words.length <= 1) {
+                fontSize = 110; // Ayah 1: الم
+                lineHeight = 145;
+            } else if (words.length <= 8) {
+                fontSize = 64; // Ayah 2
+                lineHeight = 98;
+            } else if (words.length <= 16) {
+                fontSize = 54; // Ayah 3
+                lineHeight = 84;
+            } else {
+                fontSize = 48; // Ayah 4
+                lineHeight = 76;
+            }
+
+            ctx.font = `normal ${fontSize}px "UthmanTahaNaskh", "Amiri", serif`;
+            const lines = [];
+            let cur = "";
+
+            for (let w of words) {
+                const test = cur ? (cur + " " + w) : w;
+                if (ctx.measureText(test).width > maxW && cur) {
+                    lines.push(cur);
+                    cur = w;
+                } else {
+                    cur = test;
+                }
+            }
+            if (cur) lines.push(cur);
+
+            return { lines, fontSize, lineHeight };
+        }
+
+        // Paragraph word wrapper for Widescreen Lower-Third (Max Width: 1560px)
+        function wrapParagraphLines(ctx, text, maxW) {
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = [];
+            let cur = "";
+
+            for (let w of words) {
+                const test = cur ? (cur + " " + w) : w;
+                if (ctx.measureText(test).width > maxW && cur) {
+                    lines.push(cur);
+                    cur = w;
+                } else {
+                    cur = test;
+                }
+            }
+            if (cur) lines.push(cur);
+            return lines;
+        }
+
+        // Mathematical Auto-Fit Engine for 16:9 TV Lower-Third Plate
+        function layoutResponsiveTafsirWidescreen(ctx, text, maxW = 1560, maxAllowedH = 260) {
+            let fontSize = 28;
+            let lineHeight = 46;
+            let lines = [];
+            const headerH = 52;
+            const topMargin = 26;
+            const bottomMargin = 22;
+
+            while (fontSize >= 18) {
+                ctx.font = `600 ${fontSize}px "IBM Plex Sans Arabic", sans-serif`;
+                lineHeight = Math.round(fontSize * 1.55);
+                lines = wrapParagraphLines(ctx, text, maxW);
+                const totalH = headerH + topMargin + (lines.length * lineHeight) + bottomMargin;
+                if (totalH <= maxAllowedH) break;
+                fontSize -= 0.5;
+            }
+
+            const cardH = headerH + topMargin + (lines.length * lineHeight) + bottomMargin;
+            return { lines, fontSize, lineHeight, cardH, tStartY: headerH + topMargin };
+        }
+
+        function drawRounded(c, x, y, w, h, r) {
+            c.beginPath();
+            if (typeof r === 'number') {
+                c.roundRect(x, y, w, h, r);
+            } else {
+                c.roundRect(x, y, w, h, [r.tl || 0, r.tr || 0, r.br || 0, r.bl || 0]);
+            }
+        }
+
+        // Draw the exact Quran Ayah Symbol ۝ with the Arabic number centered inside
+        function drawAyahSymbolWithNumber(c, x, y, num, scale = 1.0) {
+            c.save();
+            c.translate(x, y);
+            c.scale(scale, scale);
+
+            const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+            const numStr = String(num).split('').map(d => arabicDigits[parseInt(d)]).join('');
+
+            // Draw glyph ۝
+            c.font = 'normal 46px "Amiri", "UthmanTahaNaskh", serif';
+            c.fillStyle = '#FFF8E7';
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.fillText('۝', 0, 0);
+
+            // Draw number centered inside ۝
+            const numFontSize = numStr.length > 2 ? 14 : (numStr.length > 1 ? 16 : 18);
+            c.font = `700 ${numFontSize}px "Amiri", "IBM Plex Sans Arabic", serif`;
+            c.fillStyle = '#d4af37';
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.fillText(numStr, 0, 1.5);
+
+            c.restore();
+        }
+
+        export async function prepareIdentity() {
+            logToConsole("تحميل خط عثمان طه وجلب الآيات 1 إلى 4 والتفسير الميسر للبث التلفزيوني 16:9...", "info");
+
+            // 1. Load Font from jsDelivr
+            const fontUrl = 'https://cdn.jsdelivr.net/gh/mo7ammedreyad1/Assets@main/alfont_com_UthmanTN1-Ver10.otf.ttf';
+            try {
+                const customFont = new FontFace('UthmanTahaNaskh', `url('${fontUrl}')`);
+                await customFont.load();
+                document.fonts.add(customFont);
+                logToConsole("تم تثبيت خط عثمان طه بنجاح ✓", "info");
+            } catch (err) {
+                logToConsole("تنبيه الخط: " + err.message, "warn");
+            }
+
+            // 2. Fetch Verses Text & Tafsir for Ayahs 1 to 4
+            try {
+                const [qRes, tRes] = await Promise.all([
+                    fetch('https://api.alquran.cloud/v1/surah/2/quran-uthmani'),
+                    fetch('https://api.alquran.cloud/v1/surah/2/ar.muyassar')
+                ]);
+                const qJson = await qRes.json();
+                const tJson = await tRes.json();
+
+                const qAyahs = qJson.data.ayahs.slice(0, TOTAL_AYAHS);
+                const tAyahs = tJson.data.ayahs.slice(0, TOTAL_AYAHS);
+
+                qAyahs.forEach((item, idx) => {
+                    const num = idx + 1;
+                    const layout = formatResponsiveQuranLines(item.text, num, 1620);
+                    streamData[idx].quranLines = layout.lines;
+                    streamData[idx].quranFontSize = layout.fontSize;
+                    streamData[idx].quranLineHeight = layout.lineHeight;
+
+                    let tafsirText = tAyahs[idx].text.replace(/^[^:]+:\s*/, '').trim();
+                    streamData[idx].rawTafsir = tafsirText;
+                });
+                logToConsole("تم جلب نصوص وتفاسير الآيات الـ 4 من الـ API بنجاح ✓", "info");
+            } catch (e) {
+                logToConsole("خطأ في جلب بيانات السورة: " + e.message, "error");
+                throw e;
+            }
+
+            // 3. Fetch Audio for 2:1 to 2:4 from EveryAyah
+            logToConsole("بدء جلب ملفات التلاوة للشيخ إبراهيم الأخضر...", "info");
+            const audioUrls = Array.from({ length: TOTAL_AYAHS }, (_, i) => {
+                const pad = String(i + 1).padStart(3, '0');
+                return `https://everyayah.com/data/Ibrahim_Akhdar_32kbps/002${pad}.mp3`;
+            });
+
+            const decodedBuffers = await Promise.all(audioUrls.map(u => fetchAndDecodeAudio(u)));
+            const concat = concatenateAudioBuffers(decodedBuffers);
+            audioBuffer = concat.buffer;
+            CONFIG.duration = audioBuffer.duration;
+
+            concat.segments.forEach((seg, i) => {
+                streamData[i].start = seg.start;
+                streamData[i].end = seg.end;
+            });
+
+            logToConsole(`تم اكتمال الربط بنجاح! مدة البث التلفزيوني: ${CONFIG.duration.toFixed(2)} ثانية ✓`, "info");
+        }
+
+        // STATIC CRT Television Scanlines (Adapted for 1920 × 1080)
+        function drawStaticCRTTelevisionScanlines(c, w, h) {
+            c.save();
+            c.fillStyle = 'rgba(0, 0, 0, 0.14)';
+            const scanlineStep = 4;
+            for (let y = 0; y < h; y += scanlineStep) {
+                c.fillRect(0, y, w, 1.4);
+            }
+
+            const vig = c.createRadialGradient(w / 2, h / 2, h * 0.42, w / 2, h / 2, h * 0.78);
+            vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vig.addColorStop(0.7, 'rgba(8, 4, 2, 0.22)');
+            vig.addColorStop(1, 'rgba(8, 4, 2, 0.65)');
+            c.fillStyle = vig;
+            c.fillRect(0, 0, w, h);
+            c.restore();
+        }
+
+        // =========================================================================
+        // 3. MAIN SCENE RENDERING: 16:9 WIDESCREEN TV BROADCAST COMPOSITION
+        // =========================================================================
+        export async function drawSceneAtTime(time) {
+            ctx.save();
+            ctx.clearRect(0, 0, CONFIG.width, CONFIG.height);
+
+            // -----------------------------------------------------------------
+            // A. WIDESCREEN IMPERIAL WARM ESPRESSO BASE (1920 × 1080)
+            // -----------------------------------------------------------------
+            const bgGrad = ctx.createRadialGradient(
+                CONFIG.width / 2, CONFIG.height * 0.42, 60,
+                CONFIG.width / 2, CONFIG.height * 0.48, 1100
+            );
+            const ambientBreath = 0.88 + Math.sin(time * 1.3) * 0.12;
+            bgGrad.addColorStop(0, '#2e180c'); // Warm Mahogany Core
+            bgGrad.addColorStop(0.5 * ambientBreath, '#1d0f07'); // Deep Chestnut
+            bgGrad.addColorStop(1, '#0f0804'); // Abyssal Ebony Base
+
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+
+            let sceneAlpha = 1.0;
+            if (time >= (CONFIG.duration - 1.2)) {
+                const loopT = easeInOutCubic(clamp((time - (CONFIG.duration - 1.2)) / 1.2, 0, 1));
+                sceneAlpha = 1.0 - loopT * 0.12;
+            }
+
+            ctx.translate(CONFIG.width / 2, CONFIG.height / 2);
+            ctx.globalAlpha = sceneAlpha;
+
+            // -----------------------------------------------------------------
+            // B. WIDESCREEN TOP MASTHEAD (TV BROADCAST HEADER)
+            // -----------------------------------------------------------------
+            ctx.save();
+            const topMastheadY = -470;
+
+            // 1. Top-Left Live Indicator (Far left of 1920px screen: X = -870)
+            const liveX = -CONFIG.width / 2 + 85;
+            const liveY = topMastheadY;
+            const livePulse = 0.75 + Math.sin(time * 5) * 0.25;
+
+            // Pulsing Live Dot
+            ctx.beginPath();
+            ctx.arc(liveX, liveY, 8.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(239, 68, 68, ${livePulse})`;
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.85)';
+            ctx.shadowBlur = 14;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Word "لايف"
+            ctx.font = '700 24px "IBM Plex Sans Arabic", sans-serif';
+            ctx.fillStyle = '#FFF8E7';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('لايف', liveX + 68, liveY);
+
+            // 2. Center Surah Title in Reem Kufi Font (سورة البقرة)
+            ctx.textAlign = 'center';
+            ctx.font = '700 54px "Reem Kufi", sans-serif';
+            ctx.fillStyle = '#FFF8E7';
+            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+            ctx.shadowBlur = 22;
+            ctx.fillText('سُورَةُ البَقَرَةِ', 0, topMastheadY + 12);
+
+            // 3. Subtitle (NO DIVIDER LINE)
+            ctx.shadowBlur = 0;
+            ctx.font = '500 20px "IBM Plex Sans Arabic", sans-serif';
+            ctx.fillStyle = 'rgba(255, 248, 231, 0.8)';
+            ctx.fillText('الآيَاتُ ١ - ٤ · القارئ الشيخ إبراهيم الأخضر', 0, topMastheadY + 62);
+
+            ctx.restore();
+
+            // -----------------------------------------------------------------
+            // C. MAIN QURANIC VERSES: WIDESCREEN UTHMANIC CALLIGRAPHY (16:9 STAGE)
+            // -----------------------------------------------------------------
+            let activeIdx = 0;
+            for (let i = 0; i < streamData.length; i++) {
+                if (time >= streamData[i].start) activeIdx = i;
+            }
+
+            const curData = streamData[activeIdx] || streamData[0];
+            const vStart = curData.start;
+            const vEnd = curData.end;
+
+            const enterT = easeOutQuart(clamp((time - vStart) / 1.1, 0, 1));
+            let vAlpha = clamp((time - vStart) / 0.7, 0, 1);
+            let vSlideY = (1 - enterT) * 30;
+
+            if (time >= (vEnd - 0.6) && activeIdx < (streamData.length - 1)) {
+                const exitT = easeInOutCubic(clamp((time - (vEnd - 0.6)) / 0.6, 0, 1));
+                vAlpha = 1.0 - exitT;
+                vSlideY = -exitT * 20;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = vAlpha * sceneAlpha;
+
+            const lines = curData.quranLines || [];
+            const fontSize = curData.quranFontSize || 58;
+            const lineHeight = curData.quranLineHeight || (fontSize * 1.55);
+            const totalTextHeight = lines.length * lineHeight;
+            const quranCenterY = -150;
+
+            ctx.translate(0, quranCenterY + vSlideY);
+
+            // Luminous Warm Ivory Glow
+            ctx.shadowColor = 'rgba(255, 248, 231, 0.45)';
+            ctx.shadowBlur = 28;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#FFF8E7';
+            ctx.font = `normal ${fontSize}px "UthmanTahaNaskh", "Amiri", serif`;
+
+            const startY = -(totalTextHeight / 2) + (lineHeight / 2);
+            lines.forEach((line, li) => {
+                const lineY = startY + li * lineHeight;
+                ctx.fillText(line, 0, lineY);
+
+                // Place Ayah Symbol ۝ with enclosed number at the end of the line
+                if (li === lines.length - 1) {
+                    ctx.save();
+                    const lineWidth = ctx.measureText(line).width;
+                    const markerX = -lineWidth / 2 - 38;
+                    drawAyahSymbolWithNumber(ctx, markerX, lineY - 2, curData.number, 1.0);
+                    ctx.restore();
+                }
+            });
+
+            ctx.restore();
+
+            // -----------------------------------------------------------------
+            // D. WIDESCREEN LOWER-THIRD TAFSIR CARD (PANORAMIC 1680px PLATE)
+            // -----------------------------------------------------------------
+            ctx.save();
+            const cardW = 1680;
+            const tafsirPaddingX = 50;
+            const tafsirMaxTextW = cardW - (tafsirPaddingX * 2);
+
+            const maxAllowedCardHeight = 250;
+            const tafsirLayout = layoutResponsiveTafsirWidescreen(ctx, curData.rawTafsir || "", tafsirMaxTextW, maxAllowedCardHeight);
+
+            const cardY = 175;
+            ctx.translate(0, cardY);
+
+            // 1. Ambient Drop Shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 40;
+            ctx.shadowOffsetY = 18;
+
+            // 2. Widescreen Illuminated Ivory Plate
+            ctx.fillStyle = 'rgba(253, 248, 237, 0.96)';
+            drawRounded(ctx, -cardW / 2, 0, cardW, tafsirLayout.cardH, 22);
+            ctx.fill();
+
+            // 3. Golden Hairline Border
+            ctx.shadowColor = 'transparent';
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+            ctx.lineWidth = 1.4;
+            drawRounded(ctx, -cardW / 2, 0, cardW, tafsirLayout.cardH, 22);
+            ctx.stroke();
+
+            // -------------------------------------------------------------
+            // INTEGRATED WIDESCREEN HEADER STRIP
+            // -------------------------------------------------------------
+            ctx.save();
+            const headerHeight = 50;
+            ctx.fillStyle = 'rgba(45, 23, 11, 0.08)';
+            drawRounded(ctx, -cardW / 2 + 2, 2, cardW - 4, headerHeight, { tl: 20, tr: 20, br: 0, bl: 0 });
+            ctx.fill();
+
+            // Subtle divider line under header strip
+            ctx.strokeStyle = 'rgba(45, 23, 11, 0.15)';
+            ctx.lineWidth = 1.0;
+            ctx.beginPath();
+            ctx.moveTo(-cardW / 2 + 25, headerHeight);
+            ctx.lineTo(cardW / 2 - 25, headerHeight);
+            ctx.stroke();
+
+            // Header Right: Title
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = '700 18px "IBM Plex Sans Arabic", sans-serif';
+            ctx.fillStyle = '#2e180c';
+            ctx.fillText('التَّفْسِيرُ المُيَسَّرُ · مَعَانِي الآيَاتِ', cardW / 2 - tafsirPaddingX, headerHeight / 2 + 1);
+
+            // Header Left: Active Verse Reference Tag
+            ctx.textAlign = 'left';
+            ctx.font = '600 15px "Plus Jakarta Sans", "IBM Plex Sans Arabic", sans-serif';
+            ctx.fillStyle = 'rgba(45, 23, 11, 0.75)';
+            ctx.fillText(`سُورَةُ البَقَرَةِ · الآيَةُ (${curData.number})`, -cardW / 2 + tafsirPaddingX, headerHeight / 2 + 1);
+            ctx.restore();
+
+            // 4. Fully Visible Widescreen Tafsir Text (#190d07 on Light Mint)
+            ctx.font = `600 ${tafsirLayout.fontSize}px "IBM Plex Sans Arabic", sans-serif`;
+            ctx.fillStyle = '#190d07';
+            ctx.textAlign = 'right';
+
+            tafsirLayout.lines.forEach((line, li) => {
+                ctx.fillText(line, cardW / 2 - tafsirPaddingX, tafsirLayout.tStartY + li * tafsirLayout.lineHeight);
+            });
+
+            ctx.restore();
+
+            // -----------------------------------------------------------------
+            // E. WIDESCREEN TV BROADCAST FOOTER
+            // -----------------------------------------------------------------
+            ctx.save();
+            const footerY = 490;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '500 18px "IBM Plex Sans Arabic", sans-serif';
+            ctx.fillStyle = 'rgba(255, 248, 231, 0.65)';
+            ctx.fillText('قناة القرآن الكريم · بث مباشر متواصل ٢٤ ساعة · تفسير وتدبر كلام الله عز وجل', 0, footerY);
+            ctx.restore();
+
+            ctx.restore(); // Restore main transform
+
+            // -----------------------------------------------------------------
+            // F. STATIC CRT TELEVISION SCANLINES OVERLAY (1920 × 1080)
+            // -----------------------------------------------------------------
+            drawStaticCRTTelevisionScanlines(ctx, CONFIG.width, CONFIG.height);
+        }
+
+        // =========================================================================
+        // 4. FIXED TECHNICAL LAYER (RUNTIME & INTERACTIVE CONTROLS ENGINE)
+        // =========================================================================
+        const canvas = document.getElementById('videoCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const statusText = document.getElementById('status-text');
+        const spinner = document.getElementById('spinner');
+
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const iconPlayPause = document.getElementById('icon-play-pause');
+        const textPlayPause = document.getElementById('text-play-pause');
+        const seekSlider = document.getElementById('seek-slider');
+        const timeLabel = document.getElementById('time-label');
+
+        let audioAudioEl = null;
+        let sharedAudioCtx = null;
+        let state = { currentTime: 0, isRendering: false, isPlaying: true, animationFrameId: null };
+
+        window.renderStatus = 'loading';
+
+        function logToConsole(msg, type = 'info') {
+            const output = document.getElementById('console-output');
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clamp01(val) { return Math.max(0, Math.min(1, val)); }
+
+        function formatTimeSec(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function getSharedAudioContext() {
+            if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return sharedAudioCtx;
+        }
+
+        async function fetchAndDecodeAudio(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`فشل جلب الصوت: ${url}`);
+            const arrayBuf = await res.arrayBuffer();
+            return getSharedAudioContext().decodeAudioData(arrayBuf);
+        }
+
+        function concatenateAudioBuffers(buffers) {
+            if (!buffers || buffers.length === 0) throw new Error("لا توجد ملفات صوت للدمج");
+            const sampleRate = buffers[0].sampleRate;
+            const channelsCount = buffers[0].numberOfChannels;
+            const totalSamples = buffers.reduce((sum, b) => sum + b.length, 0);
+            const combined = getSharedAudioContext().createBuffer(channelsCount, totalSamples, sampleRate);
+
+            let sampleOffset = 0, timeOffset = 0.0;
+            const segments = [];
+
+            for (const buf of buffers) {
+                for (let ch = 0; ch < channelsCount; ch++) {
+                    combined.getChannelData(ch).set(buf.getChannelData(ch), sampleOffset);
+                }
+                const duration = buf.duration;
+                segments.push({ start: timeOffset, end: timeOffset + duration, duration });
+                sampleOffset += buf.length;
+                timeOffset += duration;
+            }
+            return { buffer: combined, segments };
+        }
+
+        function audioBufferToWavBlob(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const out = new DataView(new ArrayBuffer(length));
+            let channels = [], offset = 0, pos = 0;
+
+            function setUint16(data) { out.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { out.setUint32(pos, data, true); pos += 4; }
+
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
+            setUint32(length - pos - 4);
+
+            for (let i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
+
+            while (offset < buffer.length) {
+                for (let i = 0; i < numOfChan; i++) {
+                    let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    out.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+            return new Blob([out], { type: "audio/wav" });
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function startPreviewLoop() {
+            if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+            state.isPlaying = true;
+            iconPlayPause.className = 'ph-fill ph-pause';
+            textPlayPause.textContent = 'إيقاف';
+
+            if (audioAudioEl && audioAudioEl.paused) {
+                audioAudioEl.play().catch(e => logToConsole("تنبيه تشغيل الصوت: " + e.message, 'warn'));
+            }
+
+            const startTime = performance.now() - (state.currentTime * 1000);
+            async function loop(now) {
+                if (state.isRendering || !state.isPlaying) return;
+                const elapsed = (now - startTime) / 1000;
+                const currTime = audioAudioEl ? audioAudioEl.currentTime : (elapsed % CONFIG.duration);
+                state.currentTime = currTime;
+
+                seekSlider.value = (currTime / CONFIG.duration) * 100;
+                timeLabel.textContent = `${formatTimeSec(currTime)} / ${formatTimeSec(CONFIG.duration)}`;
+
+                await drawSceneAtTime(currTime);
+
+                if (currTime < CONFIG.duration) {
+                    state.animationFrameId = requestAnimationFrame(loop);
+                } else {
+                    state.currentTime = 0;
+                    if (audioAudioEl) audioAudioEl.currentTime = 0;
+                    startPreviewLoop();
+                }
+            }
+            state.animationFrameId = requestAnimationFrame(loop);
+        }
+
+        btnPlayPause.addEventListener('click', () => {
+            if (state.isPlaying) {
+                state.isPlaying = false;
+                if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+                if (audioAudioEl) audioAudioEl.pause();
+                iconPlayPause.className = 'ph-fill ph-play';
+                textPlayPause.textContent = 'تشغيل';
+            } else {
+                startPreviewLoop();
+            }
+        });
+
+        seekSlider.addEventListener('input', async (e) => {
+            const targetTime = (parseFloat(e.target.value) / 100) * CONFIG.duration;
+            state.currentTime = targetTime;
+            if (audioAudioEl) audioAudioEl.currentTime = targetTime;
+            timeLabel.textContent = `${formatTimeSec(targetTime)} / ${formatTimeSec(CONFIG.duration)}`;
+            await drawSceneAtTime(targetTime);
+        });
+
+        const OFOQ_FRAME_FORMAT = 'image/png';
+        window.__ofoqTotalFrames = 0;
+        window.__ofoqFps = 0;
+        window.__ofoqOutputFilename = '';
+        window.__ofoqAudioWavBase64 = null;
+
+        async function __ofoqGetFrameBatch(startFrame, count) {
+            state.isRendering = true;
+            const frames = [];
+            for (let i = 0; i < count; i++) {
+                const frameIndex = startFrame + i;
+                if (frameIndex >= window.__ofoqTotalFrames) break;
+                const timestamp = frameIndex / window.__ofoqFps;
+                await drawSceneAtTime(timestamp);
+                const dataUrl = canvas.toDataURL(OFOQ_FRAME_FORMAT);
+                frames.push(dataUrl.substring(dataUrl.indexOf(',') + 1));
+            }
+            return frames;
+        }
+        window.__ofoqGetFrameBatch = __ofoqGetFrameBatch;
+
+        document.getElementById('btn-toggle-console').addEventListener('click', () => {
+            const modal = document.getElementById('console-modal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        document.getElementById('btn-close-console').addEventListener('click', () => {
+            document.getElementById('console-modal').style.display = 'none';
+        });
+
+        document.getElementById('btn-render-start').addEventListener('click', () => {
+            logToConsole("التصدير الفعلي يتم عبر render-runner.js (Node + ffmpeg).", 'warn');
+        });
+
+        async function init() {
+            try {
+                await prepareIdentity();
+                canvas.width = CONFIG.width;
+                canvas.height = CONFIG.height;
+
+                const viewport = document.getElementById('viewport');
+                viewport.style.aspectRatio = `${CONFIG.width} / ${CONFIG.height}`;
+                viewport.style.width = `min(94vw, calc(86vh * (${CONFIG.width} / ${CONFIG.height})))`;
+
+                window.__ofoqFps = CONFIG.fps;
+                window.__ofoqTotalFrames = Math.ceil(CONFIG.duration * CONFIG.fps);
+                window.__ofoqOutputFilename = `${OUTPUT_FILENAME}.mp4`;
+
+                if (audioBuffer) {
+                    const wavBlob = audioBufferToWavBlob(audioBuffer);
+                    audioAudioEl = new Audio(URL.createObjectURL(wavBlob));
+                    window.__ofoqAudioWavBase64 = arrayBufferToBase64(await wavBlob.arrayBuffer());
+                }
+
+                statusText.textContent = "جاهز للبث والعرض والتصدير ✓";
+                spinner.style.display = 'none';
+                window.renderStatus = 'ready';
+                timeLabel.textContent = `00:00 / ${formatTimeSec(CONFIG.duration)}`;
+                await drawSceneAtTime(0);
+                startPreviewLoop();
+            } catch (err) {
+                logToConsole("خطأ أثناء التهيئة: " + err.message, 'error');
+                statusText.textContent = "حدث خطأ أثناء التحميل";
+                window.__renderError = err.message;
+                window.renderStatus = 'error';
+            }
+        }
+        window.addEventListener('load', init);
+    </script>
+</body>
+  </html>
